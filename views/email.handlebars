@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        .container {
+
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .title {
+            height: 50px;
+            background-color: #021B40;
+        }
+
+        .title h3 {
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            line-height: 50px;
+        }
+
+        .message {
+            margin-top: 20px;
+        }
+
+        .message p {
+            color: black;
+            font-size: 19px;
+            line-height: 2;
+        }
+
+        a {
+            color: red;
+            text-decoration: none;
+        }
+
+        span {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div id="root">
+        <div class="container">
+            <div class="title">
+                <h3>Your account information</h3>
+            </div>
+            <div class="message">
+                <p>Hello Mr (Madame) {{fullName}} , we just grant you access to <a href="http://localhost:3000/">admin
+                        website</a> so you can perform your tasks and see your related automates, to access the website
+                    please use : </p>
+                <p> <span id="span"> E-mail :</span> {{email}} , <span id="span">password : </span> {{password}} </p>
+                <p> Thanks in advance , Automate-M Group. </p>
+            </div>
+        </div>
+    </div>
+
+
+</body>
+</html>
