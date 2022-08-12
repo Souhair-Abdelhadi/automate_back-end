@@ -45,7 +45,7 @@ var mysqlConnection = mysql.createConnection({
     host: "localhost",
     user: "root",
     password: "",
-    database: "automates",
+    database: "automate-app",
 });
 
 
@@ -155,7 +155,7 @@ function authenticateToken(req,res,next){
 // refresh an expired access_token 
 app.post('/token', (nodeReq, nodeRes) => {
     const {token:refreshToken, email} = nodeReq.body
-    console.log("email : ",email,"token :",refreshToken)
+    //console.log("email : ",email,"token :",refreshToken)
 
     if (refreshToken == null) 
     return nodeRes.status(401).json({
@@ -166,9 +166,9 @@ app.post('/token', (nodeReq, nodeRes) => {
     mysqlConnection.connect((err)=> {
         if(!err)
         {
-            console.log("Connected");
+            //console.log("Connected");
             mysqlConnection.query("select `refresh_token` from `ingenieurs` where email = ?;",[email],function(err,res){
-                console.log("err :",err,"res :",res)
+                //console.log("err :",err,"res :",res)
                 if(err){
                     return nodeRes.status(201).json({
                         status : 'error',
@@ -177,16 +177,16 @@ app.post('/token', (nodeReq, nodeRes) => {
                     })
                 }
                 else if(res.length != 0) {
-                    console.log(res)
-                    console.log("res[0] :",res[0])
-                    console.log("refresh_token : ",refreshToken)
+                    // console.log(res)
+                    // console.log("res[0] :",res[0])
+                    // console.log("refresh_token : ",refreshToken)
                     if(res[0].refresh_token == refreshToken){
                         jwt.verify(refreshToken, 'secretkey', (err, user) => {
                             if (err) return nodeRes.status(500).json({
                                 status : "TOKEN_ERROR",
                                 message : "error while processing refresh token in database"
                             })
-                            console.log("user credentials :",user)
+                            //console.log("user credentials :",user)
                             const accessToken = jwt.sign({email : user.email,password : user.password,admin : user.admin},'secretkey',{expiresIn : '30s' })
                             nodeRes.status(200).json({
                                   access_token: accessToken,
@@ -196,7 +196,7 @@ app.post('/token', (nodeReq, nodeRes) => {
                         })
                     }
                     else {
-                        console.log("error res empty :",res)
+                        //console.log("error res empty :",res)
                         return nodeRes.status(401).json({
                             status : "TOKEN_ERROR",
                             message : "you need to log in"
@@ -566,7 +566,8 @@ app.put('/client/:id',authenticateToken,(nodeReq, nodeRes)=>{
     
     const {id} = nodeReq.params
     const {email,nom_labo,numPhone,ville,adresse,bloquer} = nodeReq.body
-    if(id && email,nom_labo,numPhone,ville,adresse,bloquer){
+    console.log(email,nom_labo,numPhone,ville,adresse,bloquer)
+    if(id && email && nom_labo && numPhone && ville && adresse && typeof bloquer == 'number'){
             mysqlConnection.connect((err)=> {
                 if(!err)
                 {
@@ -583,7 +584,7 @@ app.put('/client/:id',authenticateToken,(nodeReq, nodeRes)=>{
                         else if (res.length != 0) {
                             const admin = res[0].admin
                             if(admin == 1){
-                                mysqlConnection.query("UPDATE `clients` SET `nom_labo`= ?,`numPhone`= ?,`ville`= ?,`adresse`= ?,`bloquer` = ? WHERE idLabo = ?  ;",[nom_labo,numPhone,ville,adresse,id,bloquer],function(err,res){
+                                mysqlConnection.query("UPDATE `clients` SET `nom_labo`= ?,`numPhone`= ?,`ville`= ?,`adresse`= ?,`bloquer` = ? WHERE idLabo = ?  ;",[nom_labo,numPhone,ville,adresse,bloquer,id],function(err,res){
                             
                                     if(err){
                                         console.log(err)
@@ -881,7 +882,9 @@ app.put('/ingenieur/:id',authenticateToken,(nodeReq, nodeRes)=>{
     
     const {id} = nodeReq.params
     const {email,target_email,nomIng,numIng,password,specialite,admin,bloquer} = nodeReq.body
-    if(id && email,target_email,nomIng,numIng,password,specialite,admin,bloquer){
+    console.log(id,email,target_email,nomIng,numIng,password,specialite,admin,bloquer)
+    if(id && email && target_email && nomIng && numIng && password && specialite && (typeof admin != 'undefined') 
+        && (typeof bloquer != 'undefined' ) ){
             mysqlConnection.connect((err)=> {
                 if(!err)
                 {
@@ -896,9 +899,9 @@ app.put('/ingenieur/:id',authenticateToken,(nodeReq, nodeRes)=>{
                             })
                         }
                         else if (res.length != 0) {
-                            const admin = res[0].admin
-                            if(admin == 1){
-                                mysqlConnection.execute("UPDATE `ingenieurs` SET `nomIng`=?,`numIng`=?,`email`=?,`password`= ?,`specialite`=?,`admin`= ?,`bloquer` = ? WHERE idIng = ?;",[nomIng,numIng,target_email,password,specialite,admin,parseInt(bloquer),parseInt(id)],function(err,res){
+                            const v_admin = res[0].admin
+                            if(v_admin == 1){
+                                mysqlConnection.execute("UPDATE `ingenieurs` SET `nomIng`=?,`numIng`=?,`email`=?,`password`= ?,`specialite`=?,`admin`= ?,`bloquer` = ? WHERE idIng = ?;",[nomIng,numIng,target_email,password,specialite,parseInt(admin),parseInt(bloquer),parseInt(id)],function(err,res){
                             
                                     if(err){
                                         console.log(err)
@@ -1034,11 +1037,12 @@ app.get('/automates',authenticateToken,(nodeReq, nodeRes)=>{
             if(!err)
             {
                 if(admin == 1){
-                    mysqlConnection.query("SELECT `automates`.* FROM `automates`,`ingenieurs` WHERE automates.id_ing = ingenieurs.idIng AND traiter = 0;",[email],function(err,res){
+                    mysqlConnection.query("SELECT `automates`.*,clients.nom_labo,ingenieurs.nomIng FROM `automates`,clients,ingenieurs "+ 
+                    " WHERE clients.idLabo=automates.idLabo and automates.id_ing = ingenieurs.idIng ;",[email],function(err,res){
                     
                         if(err){
                             console.log(err)
-                            return nodeRes.status(201).json({
+                            return nodeRes.status(501).json({
                                 status : 'AUTOMATE_ERROR',
                                 message : 'error while querying data',
                                 doc : []
@@ -1057,7 +1061,7 @@ app.get('/automates',authenticateToken,(nodeReq, nodeRes)=>{
                     })
                 }
                 else {
-                    mysqlConnection.query("SELECT `automates`.* FROM `automates`,`ingenieurs` WHERE automates.id_ing = ingenieurs.idIng AND ingenieurs.email = ? and traiter = 0;",[email],function(err,res){
+                    mysqlConnection.query("SELECT `automates`.*,clients.nom_labo,ingenieurs.nomIng FROM `automates`,clients,ingenieurs WHERE clients.idLabo=automates.idLabo and automates.id_ing = ingenieurs.idIng AND ingenieurs.email = ? and traiter = 0;",[email],function(err,res){
                     
                         if(err){
                             console.log(err)
@@ -1179,7 +1183,7 @@ app.put('/automate/:id',authenticateToken,(nodeReq, nodeRes)=>{
                     }
                     else if(res.length != 0) {
                         if(admin == 1){
-                            mysqlConnection.query("UPDATE `automates` SET `idLabo`=?,`id_ing`=?,`nomAutomate`=?,`marqueAutomate`=?,`image`=? WHERE idAutomate = ?;",[idLabo,idIng,nom_automate,marque_automate,image,id],function(err,res){
+                            mysqlConnection.query("UPDATE `automates` SET `idLabo`=?,`id_ing`=?,`nomAutomate`=?,`marqueAutomate`=?,`image`=? WHERE idAutomate = ?;",[idLabo,idIng,nom_automate,marque_automate,image,parseInt(id)],function(err,res){
                             
                                 if(err){
                                     console.log(err)
@@ -1586,7 +1590,7 @@ app.put('/intervention/:id',authenticateToken,(nodeReq, nodeRes)=>{
                         else if (res.length != 0) {
                             const admin = res[0].admin
                             if(admin == 1){
-                                mysqlConnection.query("UPDATE `interventions` SET `date_inter`=?,`duree_inter`=?,`description`=? WHERE idInter = ?;",[date_inter,duree_inter,description,id],function(err,res){
+                                mysqlConnection.query("UPDATE `interventions` SET `date_inter`=?,`duree_inter`=?,`description`=? WHERE idInter = ?;",[date_inter,duree_inter,description,parseInt(id)],function(err,res){
                             
                                     if(err){
                                         console.log(err)
@@ -1597,50 +1601,47 @@ app.put('/intervention/:id',authenticateToken,(nodeReq, nodeRes)=>{
                                         })
                                     }
                                     else if (res.length != 0) {
-                                        if(listePieceSelectionner.length != 0) {
-                                            mysqlConnection.execute("DELETE FROM `piecerechange_automate` WHERE idAutomate = ?",[id_automate],function(err,res){
-                                                if(err){
-                                                    console.log(err)
-                                                    return nodeRes.status(201).json({
-                                                        status : 'INTERVENTIONS_ERROR',
-                                                        message : 'error while deleting data',
-                                                        doc : []
-                                                    })
-                                                }
-                                                if(listePieceSelectionner.length != 0){
-                                                    for(var i =0; i<listePieceSelectionner.length ; i++){
-                                                        mysqlConnection.query("INSERT INTO `pieceRechange_automate`(`idAutomate`, `idPiece`) VALUES (?,?);",[id_automate,listePieceSelectionner[i]],function(err,res2){
-                                                            if(err){
-                                                                return nodeRes.status(201).json({
-                                                                    status : 'INTERVENTION_ERROR',
-                                                                    message : 'error while inserting automate pieces',
-                                                                    doc : []
-                                                                })
-                                                            }
-                                                        })
-                                                    }
-                                                    mysqlConnection.commit(function(err){
+                                        mysqlConnection.execute("DELETE FROM `piecerechange_automate` WHERE idAutomate = ?",[id_automate],function(err,res){
+                                            if(err){
+                                                console.log(err)
+                                                return nodeRes.status(201).json({
+                                                    status : 'INTERVENTIONS_ERROR',
+                                                    message : 'error while deleting data',
+                                                    doc : []
+                                                })
+                                            }
+                                            if(listePieceSelectionner.length != 0){
+                                                for(var i =0; i<listePieceSelectionner.length ; i++){
+                                                    mysqlConnection.query("INSERT INTO `pieceRechange_automate`(`idAutomate`, `idPiece`) VALUES (?,?);",[id_automate,listePieceSelectionner[i]],function(err,res2){
                                                         if(err){
-                                                            console.log("error during commit")
+                                                            return nodeRes.status(201).json({
+                                                                status : 'INTERVENTION_ERROR',
+                                                                message : 'error while inserting automate pieces',
+                                                                doc : []
+                                                            })
                                                         }
                                                     })
-                                                    return nodeRes.status(200).json({
-                                                        status : 'OK',
-                                                        message : 'Intervention updated',
-                                                        doc : res
-                                                        
-                                                    })
                                                 }
-                                                else  {
-                                                    return nodeRes.status(201).json({
-                                                        status : 'INTERVENTION_ERROR',
-                                                        message : 'Could not complete data update',
-                                                        doc : []
-                                                    })
-                                                }
-                                            })
-                                        }
-                                        
+                                                mysqlConnection.commit(function(err){
+                                                    if(err){
+                                                        console.log("error during commit")
+                                                    }
+                                                })
+                                                return nodeRes.status(200).json({
+                                                    status : 'OK',
+                                                    message : 'Intervention updated',
+                                                    doc : res
+                                                    
+                                                })
+                                            }
+                                            else  {
+                                                return nodeRes.status(200).json({
+                                                    status : 'OK',
+                                                    message : 'Intervention updated',
+                                                    doc : res
+                                                })
+                                            }
+                                        })                                        
                                     }
                                     else {
                                         return nodeRes.status(200).json({
@@ -1904,7 +1905,7 @@ app.put('/pieces_rechange/:id',authenticateToken,(nodeReq, nodeRes)=>{
                         else if (res.length != 0) {
                             const admin = res[0].admin
                             if(admin == 1){
-                                mysqlConnection.execute("UPDATE `piecederechange` SET `nomPiece`=?,`marquePiece`=?,`supprimer` = ? WHERE idPiece=?;",[nom_piece,marque_piece,id,supprimer],function(err,res){
+                                mysqlConnection.execute("UPDATE `piecederechange` SET `nomPiece`=?,`marquePiece`=?,`supprimer` = ? WHERE idPiece=?;",[nom_piece,marque_piece,supprimer,parseInt(id)],function(err,res){
                             
                                     if(err){
                                         console.log(err)
@@ -1917,7 +1918,7 @@ app.put('/pieces_rechange/:id',authenticateToken,(nodeReq, nodeRes)=>{
                                     else if (res.length != 0) {
                                         return nodeRes.status(200).json({
                                             status : 'OK',
-                                            message : 'Data returned',
+                                            message : 'Piece de Dechange updated',
                                             doc : res
                                         })
                                     }
@@ -2171,6 +2172,289 @@ app.post('/send_email',(nodeReq, nodeRes)=>{
     }
 
 })
+
+app.get('/contacts/:email',authenticateToken,(nodeReq, nodeRes)=>{
+
+    const {email}  = nodeReq.params
+
+    if(email){
+        mysqlConnection.connect((err)=> {
+            if(!err)
+            {
+                mysqlConnection.query("SELECT `admin` FROM `ingenieurs` WHERE email = ?;",[email],function(err,res){
+                    
+                    if(err){
+                        console.log(err)
+                        return nodeRes.status(201).json({
+                            status : 'CONTACTS_ERROR',
+                            message : 'error while inserting the new contact',
+                            doc : []
+                        })
+                    }
+                    else if( res.length != 0 && res[0].admin == 1) {
+                        mysqlConnection.query("SELECT * FROM `contacts` ;",function(err,res){
+                    
+                            if(err){
+                                console.log(err)
+                                return nodeRes.status(201).json({
+                                    status : 'CONTACTS_ERROR',
+                                    message : 'error while inserting the new contact',
+                                    doc : []
+                                })
+                            }
+                            else {
+                                return nodeRes.status(200).json({
+                                    status : 'OK',
+                                    message : 'contacts data ',
+                                    doc : res
+                                    
+                                })
+                            }
+                    
+                    
+                        })
+                    }
+                    else {
+                        return nodeRes.status(200).json({
+                            status : 'CONTACTS_ERROR',
+                            message : 'can\'t get contacts data because you don\'t have enough privilege ',
+                            
+                        })
+                    }
+            
+            
+                })
+            }
+            else
+            {
+                console.log("Connection Failed");
+                return nodeRes.status(501).json({
+                    status : 'CONTACT_ERROR',
+                    message : 'internal error while connecting to database',
+                    doc : []
+                })
+            }
+        })
+    }
+    else {
+        return nodeRes.status(201).json({
+            status : 'CONTACT_ERROR',
+            message : 'data sent was completed',
+            doc : []
+        })
+    }
+
+
+})
+
+app.post('/contacts',(nodeReq, nodeRes)=>{
+
+    const {nom,email,phone,message}  = nodeReq.body
+
+    if(nom && email && phone && message ){
+        if( validator.default.isEmail(email) === true ){
+            mysqlConnection.connect((err)=> {
+                if(!err)
+                {
+                    mysqlConnection.query("INSERT INTO `contacts`(`nom`, `email`, `phone`, `message`) VALUES (?,?,?,?);",[nom,email,phone,message],function(err,res){
+                        
+                        if(err){
+                            console.log(err)
+                            return nodeRes.status(201).json({
+                                status : 'CONTACTS_ERROR',
+                                message : 'error while inserting the new contact',
+                                doc : []
+                            })
+                        }
+                        else {
+                            return nodeRes.status(200).json({
+                                status : 'OK',
+                                message : 'new contact added ',
+                                
+                            })
+                        }
+                
+                
+                    })
+                }
+                else
+                {
+                    console.log("Connection Failed");
+                    return nodeRes.status(501).json({
+                        status : 'CONTACT_ERROR',
+                        message : 'internal error while connecting to database',
+                        doc : []
+                    })
+                }
+            })
+        }
+        else{
+            return nodeRes.status(201).json({
+                status : 'CONTACT_ERROR',
+                message : 'give a valid email',
+                doc : []
+            })
+        }
+    }
+    else {
+        return nodeRes.status(201).json({
+            status : 'CONTACT_ERROR',
+            message : 'data sent was completed',
+            doc : []
+        })
+    }
+
+
+})
+
+app.put('/contacts',authenticateToken,(nodeReq, nodeRes)=>{
+
+    const {email,id}  = nodeReq.body
+
+    if(email){
+        mysqlConnection.connect((err)=> {
+            if(!err)
+            {
+                mysqlConnection.query("SELECT `admin` FROM `ingenieurs` WHERE email = ?;",[email],function(err,res){
+                    
+                    if(err){
+                        console.log(err)
+                        return nodeRes.status(201).json({
+                            status : 'CONTACTS_ERROR',
+                            message : 'error while updating a contact',
+                            doc : []
+                        })
+                    }
+                    else if( res.length != 0 && res[0].admin == 1) {
+                        mysqlConnection.execute("UPDATE `contacts` SET `contacted`=1 WHERE id = ? ;",[id],function(err,res){
+                    
+                            if(err){
+                                console.log(err)
+                                return nodeRes.status(201).json({
+                                    status : 'CONTACTS_ERROR',
+                                    message : 'error while updating a contact',
+                                    doc : []
+                                })
+                            }
+                            else {
+                                return nodeRes.status(200).json({
+                                    status : 'OK',
+                                    message : 'contact updated with success ',
+                                    doc : res
+                                    
+                                })
+                            }
+                    
+                    
+                        })
+                    }
+                    else {
+                        return nodeRes.status(200).json({
+                            status : 'CONTACTS_ERROR',
+                            message : 'can\'t update contact data because you don\'t have enough privilege ',
+                            
+                        })
+                    }
+            
+            
+                })
+            }
+            else
+            {
+                console.log("Connection Failed");
+                return nodeRes.status(501).json({
+                    status : 'CONTACT_ERROR',
+                    message : 'internal error while connecting to database',
+                    doc : []
+                })
+            }
+        })
+    }
+    else {
+        return nodeRes.status(201).json({
+            status : 'CONTACT_ERROR',
+            message : 'data sent was completed',
+            doc : []
+        })
+    }
+
+
+})
+
+app.delete('/contacts',authenticateToken,(nodeReq, nodeRes)=>{
+
+    const {email,id}  = nodeReq.body
+
+    if(email){
+        mysqlConnection.connect((err)=> {
+            if(!err)
+            {
+                mysqlConnection.query("SELECT `admin` FROM `ingenieurs` WHERE email = ?;",[email],function(err,res){
+                    
+                    if(err){
+                        console.log(err)
+                        return nodeRes.status(201).json({
+                            status : 'CONTACTS_ERROR',
+                            message : 'error while updating a contact',
+                            doc : []
+                        })
+                    }
+                    else if( res.length != 0 && res[0].admin == 1) {
+                        mysqlConnection.execute("DELETE FROM `contacts` WHERE id = ? ;",[id],function(err,res){
+                    
+                            if(err){
+                                console.log(err)
+                                return nodeRes.status(201).json({
+                                    status : 'CONTACTS_ERROR',
+                                    message : 'error while deleting a contact',
+                                    doc : []
+                                })
+                            }
+                            else {
+                                return nodeRes.status(200).json({
+                                    status : 'OK',
+                                    message : 'contact deleted with success ',
+                                    doc : res
+                                    
+                                })
+                            }
+                    
+                    
+                        })
+                    }
+                    else {
+                        return nodeRes.status(200).json({
+                            status : 'CONTACTS_ERROR',
+                            message : 'can\'t update contact data because you don\'t have enough privilege ',
+                            
+                        })
+                    }
+            
+            
+                })
+            }
+            else
+            {
+                console.log("Connection Failed");
+                return nodeRes.status(501).json({
+                    status : 'CONTACT_ERROR',
+                    message : 'internal error while connecting to database',
+                    doc : []
+                })
+            }
+        })
+    }
+    else {
+        return nodeRes.status(201).json({
+            status : 'CONTACT_ERROR',
+            message : 'data sent was completed',
+            doc : []
+        })
+    }
+
+
+})
+
 
 app.delete("/automate/:id",authenticateToken,function(nodeReq,nodeRes){
 
